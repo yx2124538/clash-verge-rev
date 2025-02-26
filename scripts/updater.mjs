@@ -131,7 +131,36 @@ async function resolveUpdater() {
     }
   });
 
+  // 在处理完所有assets后，确保旧格式平台数据与新格式一致
   await Promise.allSettled(promises);
+
+  // 明确同步新旧格式数据
+  // Windows
+  if (updateData.platforms["windows-x86_64"].url) {
+    updateData.platforms.win64.url = updateData.platforms["windows-x86_64"].url;
+    updateData.platforms.win64.signature =
+      updateData.platforms["windows-x86_64"].signature;
+  }
+
+  // Linux
+  if (updateData.platforms["linux-x86_64"].url) {
+    updateData.platforms.linux.url = updateData.platforms["linux-x86_64"].url;
+    updateData.platforms.linux.signature =
+      updateData.platforms["linux-x86_64"].signature;
+  }
+
+  // macOS
+  if (updateData.platforms["darwin-x86_64"].url) {
+    updateData.platforms.darwin.url = updateData.platforms["darwin-x86_64"].url;
+    updateData.platforms.darwin.signature =
+      updateData.platforms["darwin-x86_64"].signature;
+  } else if (updateData.platforms["darwin-aarch64"].url) {
+    updateData.platforms.darwin.url =
+      updateData.platforms["darwin-aarch64"].url;
+    updateData.platforms.darwin.signature =
+      updateData.platforms["darwin-aarch64"].signature;
+  }
+
   console.log(updateData);
 
   // maybe should test the signature as well
@@ -155,6 +184,36 @@ async function resolveUpdater() {
       console.log(`[Error]: updateDataNew.platforms.${key} is null`);
     }
   });
+
+  // 确保代理更新文件中旧格式数据也正确同步
+  // Windows
+  if (updateDataNew.platforms["windows-x86_64"].url) {
+    updateDataNew.platforms.win64.url =
+      updateDataNew.platforms["windows-x86_64"].url;
+    updateDataNew.platforms.win64.signature =
+      updateDataNew.platforms["windows-x86_64"].signature;
+  }
+
+  // Linux
+  if (updateDataNew.platforms["linux-x86_64"].url) {
+    updateDataNew.platforms.linux.url =
+      updateDataNew.platforms["linux-x86_64"].url;
+    updateDataNew.platforms.linux.signature =
+      updateDataNew.platforms["linux-x86_64"].signature;
+  }
+
+  // macOS
+  if (updateDataNew.platforms["darwin-x86_64"].url) {
+    updateDataNew.platforms.darwin.url =
+      updateDataNew.platforms["darwin-x86_64"].url;
+    updateDataNew.platforms.darwin.signature =
+      updateDataNew.platforms["darwin-x86_64"].signature;
+  } else if (updateDataNew.platforms["darwin-aarch64"].url) {
+    updateDataNew.platforms.darwin.url =
+      updateDataNew.platforms["darwin-aarch64"].url;
+    updateDataNew.platforms.darwin.signature =
+      updateDataNew.platforms["darwin-aarch64"].signature;
+  }
 
   // update the update.json
   const { data: updateRelease } = await github.rest.repos.getReleaseByTag({

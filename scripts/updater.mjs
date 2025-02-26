@@ -35,7 +35,10 @@ async function resolveUpdater() {
 
   const updateData = {
     name: tag.name,
+    current_version: tag.name.replace("v", ""),
+    tag_name: tag.name,
     notes: await resolveUpdateLog(tag.name), // use updatelog.md
+    body: await resolveUpdateLog(tag.name), // 添加body字段（v1可能使用此字段）
     pub_date: new Date().toISOString(),
     platforms: {
       win64: { signature: "", url: "" }, // compatible with older formats
@@ -161,12 +164,26 @@ async function resolveUpdater() {
       updateData.platforms["darwin-aarch64"].signature;
   }
 
+  // 兼容v1格式，确保signature字段是字符串而不是对象
+  const v1Platforms = ["win64", "linux", "darwin"]; // v1 格式的平台标识符
+  v1Platforms.forEach((platform) => {
+    if (
+      updateData.platforms[platform] &&
+      updateData.platforms[platform].signature &&
+      typeof updateData.platforms[platform].signature !== "string"
+    ) {
+      updateData.platforms[platform].signature = String(
+        updateData.platforms[platform].signature,
+      );
+    }
+  });
+
   console.log(updateData);
 
   // maybe should test the signature as well
-  // delete the null field
+  // delete the null field for new format platforms only, keep v1 format platforms
   Object.entries(updateData.platforms).forEach(([key, value]) => {
-    if (!value.url) {
+    if (!value.url && !v1Platforms.includes(key)) {
       console.log(`[Error]: failed to parse release for "${key}"`);
       delete updateData.platforms[key];
     }
@@ -176,12 +193,23 @@ async function resolveUpdater() {
   // 使用 https://hub.fastgit.xyz/ 做github资源的加速
   const updateDataNew = JSON.parse(JSON.stringify(updateData));
 
+  // 确保所有关键字段都存在，但排除version字段（避免重复）
+  ["current_version", "tag_name", "body"].forEach((field) => {
+    if (updateData[field] && !updateDataNew[field]) {
+      updateDataNew[field] = updateData[field];
+    }
+  });
+
   Object.entries(updateDataNew.platforms).forEach(([key, value]) => {
     if (value.url) {
       updateDataNew.platforms[key].url =
         "https://download.clashverge.dev/" + value.url;
     } else {
-      console.log(`[Error]: updateDataNew.platforms.${key} is null`);
+      // 只有当该平台不在v1平台列表中时才打印错误
+      // v1平台即使没有URL也要保留
+      if (!v1Platforms.includes(key)) {
+        console.log(`[Error]: updateDataNew.platforms.${key} is null`);
+      }
     }
   });
 
@@ -214,6 +242,19 @@ async function resolveUpdater() {
     updateDataNew.platforms.darwin.signature =
       updateDataNew.platforms["darwin-aarch64"].signature;
   }
+
+  // 同样为代理文件兼容v1格式，确保signature字段是字符串而不是对象
+  v1Platforms.forEach((platform) => {
+    if (
+      updateDataNew.platforms[platform] &&
+      updateDataNew.platforms[platform].signature &&
+      typeof updateDataNew.platforms[platform].signature !== "string"
+    ) {
+      updateDataNew.platforms[platform].signature = String(
+        updateDataNew.platforms[platform].signature,
+      );
+    }
+  });
 
   // update the update.json
   const { data: updateRelease } = await github.rest.repos.getReleaseByTag({
